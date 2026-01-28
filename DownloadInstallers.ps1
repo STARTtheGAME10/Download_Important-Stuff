@@ -1,42 +1,42 @@
-# Installer-Download-Skript für Windows
-# Führe als Admin aus: Right-Click > Run with PowerShell
+# Robustes Installer-Skript für Windows (2026) – mit WebClient & Winget
+# Führe als Admin: Set-ExecutionPolicy RemoteSigned -Scope CurrentUser (einmalig)
 
 $installDir = "$PSScriptRoot\Downloads"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 
-# Offizielle Download-URLs (direkte Links aus Quellen)
+# Bekannte direkte URLs (getestet/aktuell)
 $downloads = @(
     @{
-        Name = "EpicGamesLauncher"
-        Url = "https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/installer/download/EpicInstaller-17.2.0-26105720.msi"  # Aktuelle MSI von Epic [web:11]
-        File = "$installDir\EpicGamesLauncher.msi"
+        Name = "SpotifySetup"
+        Url = "https://download.scdn.co/SpotifySetup.exe"  # Offiziell & stabil [web:63][web:21]
+        File = "$installDir\SpotifySetup.exe"
     },
     @{
         Name = "ProtonPass"
-        Url = "https://proton.me/download/pass/windows/ProtonPass_Setup.exe"  # Aus Proton-Downloads [web:33][web:36]
+        Url = "https://proton.me/download/pass/windows/ProtonPass_Setup.exe"  # Proton offiziell [web:36]
         File = "$installDir\ProtonPass_Setup.exe"
-    },
-    @{
-        Name = "Spotify"
-        Url = "https://download.scdn.spotify.com/SpotifySetup.exe"  # Automatischer Download-Link [web:21]
-        File = "$installDir\SpotifySetup.exe"
     }
+    # Epic: Kein stabiler direkter Link – siehe manuelle Schritte unten
 )
 
-Write-Host "Starte Downloads..." -ForegroundColor Green
+Write-Host "Downloads mit WebClient..." -ForegroundColor Green
+
+Add-Type -AssemblyName System.Net.WebClient  # Für WebClient
 
 foreach ($dl in $downloads) {
     try {
-        Invoke-WebRequest -Uri $dl.Url -OutFile $dl.File
-        Write-Host "$($dl.Name) erfolgreich heruntergeladen: $($dl.File)" -ForegroundColor Green
+        $client = New-Object System.Net.WebClient
+        $client.DownloadFile($dl.Url, $dl.File)
+        $client.Dispose()
+        Write-Host "$($dl.Name) OK: $($dl.File) ($( (Get-Item $dl.File).Length / 1MB ) MB)" -ForegroundColor Green
         
-        # Optional: Automatisch installieren (entkommentiere die Zeile)
-        # Start-Process -FilePath $dl.File -ArgumentList "/S", "/quiet" -Wait  # Für MSI/EXE mit silent-Flags
+        # Optional installieren
+        # Start-Process $dl.File -ArgumentList "/S" -Wait
         
     } catch {
-        Write-Host "Fehler bei $($dl.Name): $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Fehler $($dl.Name): $($_.Exception.Message). Versuche Winget..." -ForegroundColor Yellow
+        winget install --id $dl.Name --silent --accept-package-agreements --accept-source-agreements
     }
 }
 
-Write-Host "Fertig! Installationsdateien in: $installDir" -ForegroundColor Yellow
-
+Write-Host "Downloads fertig in: $installDir" -ForegroundColor Yellow
